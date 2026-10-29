@@ -1,5 +1,5 @@
 import {move} from './core.mjs';
-export const RELEASE='1.0.0-beta.1p.1';
+export const RELEASE='1.0.0-beta.1p';
 export const canonicalCode=value=>String(value??'').normalize('NFKC').trim().toLowerCase();
 const number=(v,label)=>{if(!Number.isSafeInteger(v)||v<0)throw Error(label+': usa un entero no negativo.');return v};
 const string=(v,label,max=160)=>{if(typeof v!=='string'||v.length>max)throw Error(label+': texto no válido.');return v.trim()};
