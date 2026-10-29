@@ -21,3 +21,21 @@ return {ok:true,mask,bounds:{minX,minY,maxX,maxY}};
 export async function catalogPicture(file){const canvas=await imageCanvas(file,800),ctx=canvas.getContext('2d'),original=canvas.toDataURL('image/jpeg',.85),image=ctx.getImageData(0,0,canvas.width,canvas.height);const result=plainBackgroundMask(image.data,canvas.width,canvas.height);if(!result.ok)return {original,cleaned:'',reason:result.reason};
 for(let i=0;i<result.mask.length;i++)if(result.mask[i]){image.data[i*4]=255;image.data[i*4+1]=255;image.data[i*4+2]=255;image.data[i*4+3]=255}ctx.putImageData(image,0,0);
 const {minX,minY,maxX,maxY}=result.bounds,w=maxX-minX+1,h=maxY-minY+1,size=Math.ceil(Math.max(w,h)*1.15),out=document.createElement('canvas');out.width=out.height=800;const dest=out.getContext('2d');dest.fillStyle='#fff';dest.fillRect(0,0,800,800);const scale=800/size;dest.drawImage(canvas,minX,minY,w,h,(800-w*scale)/2,(800-h*scale)/2,w*scale,h*scale);return {original,cleaned:out.toDataURL('image/jpeg',.88),reason:'Fondo blanco preparado. Revisa que el producto esté completo antes de usarlo.'};}
+
+export function eraseLine(ctx,from,to,size){ctx.save();ctx.strokeStyle='#fff';ctx.fillStyle='#fff';ctx.lineWidth=size;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.beginPath();ctx.arc(to.x,to.y,size/2,0,Math.PI*2);ctx.fill();ctx.restore()}
+export async function photoEditor(host,source,onApply){
+host.innerHTML='<h3>Retoque sobre fondo blanco</h3><p>Pasa el dedo o el mouse sobre la mano o el fondo que quieras borrar. Evita tocar el producto. Puedes deshacer cada trazo.</p><label>Tamaño del borrador<input id="eraseSize" type="range" min="4" max="100" value="30"></label><canvas id="eraseCanvas" aria-label="Foto para borrar manualmente mano y fondo"></canvas><div class="photo-actions"><button type="button" id="eraseUndo" disabled>Deshacer trazo</button><button type="button" id="eraseCancel">Cancelar retoque</button><button type="button" id="eraseApply">Aplicar retoque</button></div><p id="eraseStatus" role="status">Cargando foto…</p>';
+const canvas=host.querySelector('#eraseCanvas'),ctx=canvas.getContext('2d'),undo=host.querySelector('#eraseUndo'),size=host.querySelector('#eraseSize'),status=host.querySelector('#eraseStatus'),history=[];
+let ready=false,drawing=false,last,pointer;
+host.querySelector('#eraseCancel').onclick=()=>host.replaceChildren();
+const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('No se pudo abrir esta imagen para retocar.'));image.src=source});
+if(!canvas.isConnected)return;
+const scale=Math.min(1,800/Math.max(image.width,image.height));canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);ready=true;status.textContent='Listo. El borrado es manual; no se detecta la mano automáticamente.';
+const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}};
+const diameter=()=>Number(size.value)*canvas.width/canvas.getBoundingClientRect().width;
+canvas.onpointerdown=e=>{if(!ready||drawing)return;e.preventDefault();history.push(ctx.getImageData(0,0,canvas.width,canvas.height));if(history.length>6)history.shift();undo.disabled=false;drawing=true;pointer=e.pointerId;last=point(e);canvas.setPointerCapture(pointer);eraseLine(ctx,last,last,diameter())};
+canvas.onpointermove=e=>{if(!drawing||e.pointerId!==pointer)return;e.preventDefault();const next=point(e);eraseLine(ctx,last,next,diameter());last=next};
+const finish=e=>{if(!drawing||e.pointerId!==pointer)return;drawing=false;if(canvas.hasPointerCapture(pointer))canvas.releasePointerCapture(pointer)};canvas.onpointerup=finish;canvas.onpointercancel=finish;
+undo.onclick=()=>{if(!history.length)return;drawing=false;ctx.putImageData(history.pop(),0,0);undo.disabled=!history.length};
+host.querySelector('#eraseApply').onclick=()=>{if(!ready)return;onApply(canvas.toDataURL('image/jpeg',.9));host.replaceChildren()};
+}

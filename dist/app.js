@@ -1,7 +1,7 @@
 import {search,move} from './core.mjs';
-import {imageCanvas,catalogPicture} from './photo.mjs';
+import {catalogPicture,photoEditor} from './photo.mjs';
 import {icon} from './icons.mjs';
-import {armFeedback,beep,readImageText,cancelTextReading,labelSuggestions,printedCodes} from './assist.mjs';
+import {armFeedback,beep,readImageText,cancelTextReading,printedCodes} from './assist.mjs';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let mode='test',view='inventory',query='',stream,timer,db,cameraSession=0;const device=localStorage.mtDevice||crypto.randomUUID();localStorage.mtDevice=device;
 const seed=()=>({version:1,products:[['Ketchup de casa','TEST-001','Casa','Botella · 400 g',6,2,'A','1','01','🍅'],['Crema de casa','TEST-002','Casa','Envase · 250 ml',2,3,'A','1','02','🥛'],['Filtro de aceite (ficticio)','FIC-101','DemoParts','Rosca M20 · motor 1.6',12,4,'B','2','01','⚙'],['Pastillas de freno (ficticias)','FIC-102','DemoParts','Delanteras · sedan',0,2,'B','3','02','🔧']].map(([name,code,brand,spec,qty,min,shelf,level,box,emoji])=>({id:crypto.randomUUID(),name,code,brand,spec,qty,min,shelf,level,box,emoji})),events:[]});
@@ -23,21 +23,17 @@ modal(`<h2>${p.id?'Editar producto':'Nuevo producto'}</h2><form id="product"><di
 ${field('Nombre','name',p.name)}${field('Código único','code',p.code||code)}
 <div class="wide"><button type="button" id="scanProductCode">${icon('scan')} Escanear código</button><p id="productCodeStatus" role="status"></p></div>
 ${field('Marca','brand',p.brand)}${field('Medidas / características','spec',p.spec)}${!p.id?field('Cantidad inicial','qty',0,'number'):''}${field('Stock mínimo','min',p.min||0,'number')}
-${field('Estante','shelf',p.shelf)}${field('Nivel','level',p.level)}${field('Caja','box',p.box)}
-<section class="wide photo-assist"><h3>${icon('camera')} Leer etiquetas</h3><p>Añade frente, reverso y los detalles que necesites, hasta 8 fotos. Se combinará el texto para sugerir los datos. Las fotos se procesan en este navegador; la primera lectura descarga el lector y los idiomas.</p>
-<input id="labelCapture" type="file" accept="image/*" capture="environment" hidden><input id="labelGallery" type="file" accept="image/*" multiple hidden>
-<div class="photo-actions"><button type="button" id="takeLabelPhoto">${icon('camera')} Añadir toma</button><button type="button" id="chooseLabels">${icon('photo')} Elegir fotos</button></div>
-<div id="labelPhotos" class="label-photos"></div><button type="button" id="readLabel">Leer / reintentar fotos pendientes</button><p id="labelStatus" role="status"></p><div id="labelReview"></div></section>
-<section class="wide photo-assist"><h3>${icon('photo')} Foto del catálogo</h3><p>La primera toma se usa como portada. Puedes elegir otra. El fondo blanco automático funciona mejor con superficies lisas que contrasten con el producto; revisa el resultado.</p>
-<label>Elegir otra foto del producto<input type="file" name="photo" accept="image/*" capture="environment"></label><div id="catalogPreview" class="catalog-preview"></div><p id="catalogStatus" role="status"></p><div class="photo-actions"><button type="button" id="useOriginal" hidden>Conservar original</button><button type="button" id="useWhite" hidden>Usar fondo blanco</button></div></section>
+${field('Estante (opcional)','shelf',p.shelf)}${field('Repisa / nivel (opcional)','level',p.level)}${field('Caja / recipiente (opcional)','box',p.box)}<p class="wide location-help">Ejemplo: estante A → repisa 2 → caja 3. Si no usas repisas o cajas, déjalas vacías.</p>
+<section class="wide photo-assist"><h3>${icon('photo')} Foto del catálogo</h3><p>Esta foto solo se usa en el catálogo: no se leen ni rellenan datos. Se intenta limpiar un fondo liso; para quitar una mano o restos de fondo, usa Retocar foto. Revisa la portada antes de guardar.</p>
+<label>Tomar o elegir foto del producto<input type="file" name="photo" accept="image/*" capture="environment"></label><div id="catalogPreview" class="catalog-preview"></div><p id="catalogStatus" role="status"></p><div class="photo-actions"><button type="button" id="useOriginal" hidden>Conservar original</button><button type="button" id="useWhite" hidden>Usar fondo blanco</button><button type="button" id="retouchPhoto" hidden>Retocar foto / borrar mano</button></div><div id="photoEditor" class="photo-editor"></div></section>
 </div><button class="primary" id="saveProduct">${icon('check')} ${p.id?'Guardar cambios':'Crear producto'}</button></form>`);
-const form=$('#product'),photos=[],labelStatus=$('#labelStatus'),review=$('#labelReview'),readButton=$('#readLabel'),saveButton=$('#saveProduct');
-let readId=0,photoId=0,photoBusy=false,catalogPhoto=p.photo||'',catalogResult=null;
+const form=$('#product'),saveButton=$('#saveProduct');
+let photoId=0,photoBusy=false,catalogPhoto=p.photo||'',catalogResult=null;
 const live=()=>form.isConnected&&$('#modal').open;
-const showCatalog=()=>{$('#catalogPreview').innerHTML=catalogPhoto?'<img alt="Vista previa de la foto del producto" src="'+esc(catalogPhoto)+'">':''};
+const showCatalog=()=>{$('#retouchPhoto').hidden=!catalogPhoto;$('#catalogPreview').innerHTML=catalogPhoto?'<img alt="Vista previa de la foto del producto" src="'+esc(catalogPhoto)+'">':''};
 showCatalog();
 async function setCatalog(file){
-const id=++photoId;photoBusy=true;saveButton.disabled=true;$('#catalogStatus').textContent='Preparando portada y comprobando el fondo…';
+$('#photoEditor').replaceChildren();const id=++photoId;photoBusy=true;saveButton.disabled=true;$('#catalogStatus').textContent='Preparando portada y comprobando el fondo…';
 try{const result=await catalogPicture(file);if(id!==photoId)return;catalogResult=result;catalogPhoto=result.cleaned||result.original;if(live()){showCatalog();$('#catalogStatus').textContent=result.reason;$('#useOriginal').hidden=!result.cleaned;$('#useWhite').hidden=!result.cleaned}}
 catch(e){if(live())$('#catalogStatus').textContent=e.message}
 finally{if(id===photoId){photoBusy=false;saveButton.disabled=false}}
@@ -45,47 +41,18 @@ finally{if(id===photoId){photoBusy=false;saveButton.disabled=false}}
 $('#useOriginal').onclick=()=>{catalogPhoto=catalogResult.original;showCatalog();$('#catalogStatus').textContent='Se guardará la foto original.'};
 $('#useWhite').onclick=()=>{catalogPhoto=catalogResult.cleaned;showCatalog();$('#catalogStatus').textContent='Se guardará la versión con fondo blanco. Revisa que el producto esté completo.'};
 form.elements.namedItem('photo').onchange=e=>{if(e.target.files[0])setCatalog(e.target.files[0])};
-function showPhotos(){
-$('#labelPhotos').innerHTML=photos.map((item,i)=>'<article><img src="'+esc(item.thumb)+'" alt="Etiqueta, toma '+(i+1)+'"><span>Toma '+(i+1)+' · '+(item.result?'Leída':item.error?'Reintentar':'Pendiente')+'</span><button type="button" data-remove-photo="'+item.id+'" aria-label="Quitar toma '+(i+1)+'">'+icon('trash')+'</button></article>').join('');
-$('#labelPhotos').querySelectorAll('[data-remove-photo]').forEach(button=>button.onclick=()=>{cancelTextReading();readId++;readButton.disabled=false;const at=photos.findIndex(item=>item.id===button.dataset.removePhoto);if(at>=0)photos.splice(at,1);showPhotos();showSuggestions();labelStatus.textContent='Toma quitada. Puedes leer las fotos pendientes.'});
-}
-function showSuggestions(){
-const results=photos.filter(item=>item.result).map(item=>item.result),text=results.map(item=>item.text).join('\n');
-if(!text.trim()&&!results.some(item=>item.barcode)){review.replaceChildren();return}
-const suggestion=labelSuggestions(text);suggestion.code=results.find(item=>item.barcode)?.barcode||suggestion.code;
-review.innerHTML='<h3>Datos combinados · revisa antes de aplicar</h3><div class="fields">'+field('Nombre sugerido','suggestName',suggestion.name)+field('Marca sugerida','suggestBrand',suggestion.brand)+field('Medidas sugeridas','suggestSpec',suggestion.spec)+field('Código sugerido','suggestCode',suggestion.code)+'</div><button type="button" id="applyLabel">'+icon('check')+' Aplicar sugerencias</button><details><summary>Ver texto de las tomas leídas</summary><pre></pre></details>';
-review.querySelector('pre').textContent=text;
-$('#applyLabel').onclick=()=>{let gotCode=false;for(const [from,to] of [['suggestName','name'],['suggestBrand','brand'],['suggestSpec','spec'],['suggestCode','code']]){const value=form.elements.namedItem(from).value.trim();if(value){form.elements.namedItem(to).value=value;if(to==='code')gotCode=true}}if(gotCode){armFeedback();beep()}labelStatus.textContent='Datos aplicados. Revisa la ficha, cantidad y ubicación antes de guardar.';review.replaceChildren()};
-}
-async function readLabels(){
-armFeedback();if(!photos.length){labelStatus.textContent='Añade al menos una foto de la etiqueta.';return}
-cancelTextReading();const id=++readId;readButton.disabled=true;const active=()=>id===readId&&live();
-try{for(let i=0;i<photos.length;i++){
-if(!active())return;const item=photos[i];if(item.result)continue;item.error='';labelStatus.textContent='Leyendo toma '+(i+1)+' de '+photos.length+'…';
-try{const result=await readImageText(item.file,message=>{if(active())labelStatus.textContent='Toma '+(i+1)+' de '+photos.length+' · '+message});if(!active())return;if(!result.text.trim()&&!result.barcode)item.error='No se distinguió texto en esta toma.';else item.result=result}
-catch(e){if(!active())return;item.error=e.message}
-showPhotos();showSuggestions();
-}
-if(active()){const failed=photos.filter(item=>item.error);labelStatus.textContent=failed.length?failed.length+' toma(s) sin leer. '+failed[0].error+' Puedes reintentar; se conservan las tomas leídas.':'Lectura completada de '+photos.length+' toma(s). Revisa las sugerencias antes de aplicarlas.'}
-}finally{if(id===readId)readButton.disabled=false}
-}
-async function addLabels(files){
-const selected=Array.from(files).slice(0,8-photos.length);if(!selected.length){labelStatus.textContent='Puedes añadir hasta 8 fotos por producto.';return}
-cancelTextReading();readId++;readButton.disabled=false;
-for(const file of selected){try{const canvas=await imageCanvas(file,180);if(!live())return;photos.push({id:crypto.randomUUID(),file,thumb:canvas.toDataURL('image/jpeg',.7),result:null,error:''});if(!catalogPhoto&&!photoBusy)await setCatalog(file)}catch(e){if(live())labelStatus.textContent=e.message}}
-if(live()){showPhotos();readLabels()}
-}
-$('#takeLabelPhoto').onclick=()=>$('#labelCapture').click();$('#chooseLabels').onclick=()=>$('#labelGallery').click();
-for(const id of ['#labelCapture','#labelGallery'])$(id).onchange=e=>{addLabels(e.target.files);e.target.value=''};
-readButton.onclick=readLabels;
+$('#retouchPhoto').onclick=async()=>{
+if(photoBusy)return;
+try{await photoEditor($('#photoEditor'),catalogPhoto,edited=>{catalogResult??={original:catalogPhoto,cleaned:''};catalogResult.cleaned=edited;catalogPhoto=edited;showCatalog();$('#useOriginal').hidden=false;$('#useWhite').hidden=false;$('#catalogStatus').textContent='Retoque aplicado a la portada. Revisa el producto antes de guardar.'})}catch(e){$('#catalogStatus').textContent=e.message;$('#photoEditor').replaceChildren()}
+};
 $('#scanProductCode').onclick=()=>{
 if(photoBusy){toast('Espera a que termine de preparar la portada.');return}
-cancelTextReading();readId++;readButton.disabled=false;labelStatus.textContent=photos.length?'Tomas conservadas. Puedes reintentar la lectura al regresar.':'';
+
 const body=$('#dialogBody'),savedNodes=Array.from(body.childNodes),restore=()=>{stop();body.replaceChildren(...savedNodes)};
 scanner({onBack:restore,onCode:value=>{restore();form.elements.namedItem('code').value=value.trim();const duplicate=db.products.find(x=>x.id!==p.id&&x.code.trim().toLowerCase()===value.trim().toLowerCase());$('#productCodeStatus').textContent=duplicate?'Este código ya existe: '+duplicate.name+'. Al guardar podrás abrir su ficha.':'Código leído. Completa los datos y confirma el producto.';form.elements.namedItem('code').focus()}});
 };
 form.onsubmit=e=>{
-e.preventDefault();if(photoBusy){toast('Espera a que termine la foto.');return}
+e.preventDefault();if(photoBusy){toast('Espera a que termine la foto.');return}if($('#photoEditor').childElementCount){toast('Aplica o cancela el retoque antes de guardar.');return}
 const data=Object.fromEntries(new FormData(form)),duplicate=db.products.find(x=>x.code.trim().toLowerCase()===data.code.trim().toLowerCase()&&x.id!==p.id);
 if(duplicate){const body=$('#dialogBody'),savedNodes=Array.from(body.childNodes);modal('<h2>Este código ya existe</h2><p>'+esc(duplicate.name)+' · '+duplicate.qty+' unidades. Abre su ficha para sumar, corregir o cambiar ubicación.</p><button id="existing" class="primary">Abrir ficha existente</button><button id="backDraft" type="button">Volver al producto</button>');$('#existing').onclick=()=>detail(duplicate.id);$('#backDraft').onclick=()=>{stop();$('#dialogBody').replaceChildren(...savedNodes)};return}
 const qty=p.id?p.qty:Number(data.qty),min=Number(data.min);if(!Number.isInteger(qty)||qty<0||!Number.isInteger(min)||min<0){toast('Cantidades enteras, cero o mayores');return}
