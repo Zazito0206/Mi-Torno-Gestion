@@ -52,10 +52,18 @@ Tras actualizar, cierra y vuelve a abrir las páginas de la aplicación en ambos
 
 ## Verificación de esta versión
 
-- Ocho pruebas incluidas en tests/: movimientos, validación/restauración, separación real/pruebas, fotos en copias, reposición, comandos idempotentes y consulta/movimientos conectados con respuestas fragmentadas en transporte simulado.
+- Nueve pruebas incluidas en tests/: movimientos, validación/restauración, separación real/pruebas, fotos en copias, reposición, comandos idempotentes y consulta/movimientos conectados con respuestas fragmentadas en transporte simulado.
 - Prueba de interfaz con DOM: arranque completo, alta, entrada, salida, conteo, responsable, restauración, aislamiento entre inventarios, recuperación de corrupción y conflictos de pestañas.
 - Regresiones: fotos persistidas y visibles en tarjetas al recargar datos, enlace automático, envío de fotos, HID simulado, cámara, pitido, borrador y deshacer.
 - El servidor local devolvió HTTP 200 para la página y los módulos principales. Se comprobaron la sintaxis y la integridad de los recursos de la interfaz.
 
 La automatización visual de navegador no pudo iniciarse por restricciones del entorno de Windows. No se completó revisión de píxeles ni cámara/lector físico en un teléfono, tablet o PC real. Antes de la presentación hay que ensayar GUIA-BETA1.md en los equipos del taller. La beta está preparada para esa prueba; todavía no debe ser el único registro definitivo del inventario.
 
+
+## Entrada/salida con escáner vinculado
+
+Registrar entrada y Registrar salida usan por defecto el teléfono escáner si hay uno conectado. La principal solicita abrir su lector y espera el código; la respuesta conserva la operación elegida y abre su ficha para confirmar cantidades. El teléfono debe mantener abierta y visible la aplicación; la web no puede desbloquearlo ni traer una pestaña de fondo al frente. Si el navegador necesita permiso de cámara, se concede o se usa Reintentar cámara en ese teléfono.
+
+La principal puede cancelar, solicitar de nuevo o elegir Usar cámara de este dispositivo. Las lecturas de solicitudes canceladas se rechazan. Con un lector HID activado se espera la lectura de teclado en lugar de abrir una cámara. Si no hay lector activo, se usa la cámara local. Escanear siguiente conserva la misma ruta y operación.
+
+Se restauró el pitido anterior (1450 Hz, aproximadamente 0,19 segundos), conservando el control de volumen. La prueba scan-request.test.mjs comprueba la solicitud remota, entrada/salida y cancelación; pasaron nueve pruebas y las regresiones de interfaz, HID y modo conectado. La prueba física de apertura de cámara en el teléfono sigue pendiente.
