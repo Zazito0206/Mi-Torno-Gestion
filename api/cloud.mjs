@@ -2,7 +2,7 @@ import {createSession,validSession,sessionCookie,readCookie,allowedOrigin,sameSe
 const MAX_BODY=3000000;
 export default async function handler(req,res){
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
- const url=process.env.MT_CLOUD_URL,token=process.env.MT_CLOUD_BRIDGE_TOKEN,secret=process.env.MT_SESSION_SECRET,access=process.env.MT_ACCESS_CODE,configured=!!(url&&token&&secret?.length>=32&&access?.length>=16),op=String(req.query?.op||new URL(req.url,'https://local').searchParams.get('op')||'status');
+ const url=process.env.MT_CLOUD_URL,token=process.env.MT_CLOUD_BRIDGE_TOKEN,secret=process.env.MT_SESSION_SECRET,access=process.env.MT_ACCESS_CODE,configured=!!(url&&token&&secret?.length>=32&&access?.length>=10),op=String(req.query?.op||new URL(req.url,'https://local').searchParams.get('op')||'status');
  const answer=(status,body)=>res.status(status).json(body),authenticated=configured&&validSession(readCookie(req.headers.cookie),secret);
  if(op==='status')return answer(200,{configured,authenticated,version:'1P'});
  if(!configured)return answer(503,{error:'CLOUD_NOT_CONFIGURED',message:'El guardado en la nube aún no está configurado.'});
