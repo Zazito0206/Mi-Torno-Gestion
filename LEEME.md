@@ -44,10 +44,22 @@ No se completó verificación visual automatizada: la herramienta de navegador n
 
 ## Foto de etiqueta y sonido
 
-En Nuevo producto, pulsa **Tomar foto y sugerir datos**. El OCR experimental Tesseract.js 7.0.0 lee la etiqueta en el navegador; propone nombre, marca, medidas y código cuando puede distinguirlos. Revisa y corrige las sugerencias y pulsa Aplicar. Cantidad, mínimo y ubicación nunca se deducen de una foto. La aplicación no guarda un producto hasta confirmar el formulario. La marca es una sugerencia basada en líneas de texto; no es reconocimiento garantizado del envase ni consulta de un catálogo externo.
+En Nuevo producto, pulsa **Añadir toma** o **Elegir fotos**. Puedes combinar hasta ocho fotos (frente, reverso y detalles). Se conservan las lecturas correctas al reintentar las que fallaron. Las tomas de etiqueta se usan durante el registro; se guarda una sola foto de portada. El OCR experimental Tesseract.js 7.0.0 lee la etiqueta en el navegador; propone nombre, marca, medidas y código cuando puede distinguirlos. Revisa y corrige las sugerencias y pulsa Aplicar. Cantidad, mínimo y ubicación nunca se deducen de una foto. La aplicación no guarda un producto hasta confirmar el formulario. La marca es una sugerencia basada en líneas de texto; no es reconocimiento garantizado del envase ni consulta de un catálogo externo.
 
 La primera lectura descarga código y modelos de idioma desde servicios CDN y necesita conexión. No se envían fotos a un servicio de análisis. El texto puede fallar con reflejos, tipografía de logotipos, envases curvos o mala iluminación. Hay progreso, límite de espera y alternativa manual.
 
 El visor de barras es compacto y procesa la franja visible centrada. Los códigos confirmados por cámara, foto o entrada manual producen un pitido. Usa Probar pitido para comprobar el volumen; el navegador y el modo silencio pueden impedir sonido. La lectura de barras en vivo sigue dependiendo de BarcodeDetector; fotografiar los números es una alternativa OCR, no un decodificador universal de barras.
 
 Verificado: extracción real de una etiqueta sintética (DUCAL, Ketchup, 400 g y código) con Tesseract 7.0.0, reglas de sugerencias y GTIN, retorno del código al formulario, un pitido por lectura aceptada y manejo simulado de permisos/cierre de cámara. Cámara física, sonido audible y aspecto final en tu teléfono pendientes de verificación en el dispositivo.
+
+## Actualización: varias tomas, portada e iconos
+
+Se corrigió la importación del módulo ESM de Tesseract: la API está en su exportación default. El error anterior podía impedir iniciar OCR y mostraba indebidamente un mensaje de conexión. Ahora los errores distinguen apertura de imagen, carga del lector, idiomas y reconocimiento. Se incorporó una alternativa de apertura con Image para formatos que createImageBitmap no pueda decodificar; los formatos no admitidos siguen mostrando error.
+
+Puedes tomar frente y reverso uno tras otro, añadir varias imágenes de galería, quitar tomas y reintentar las pendientes. Las sugerencias combinadas siguen requiriendo revisión. La cantidad, el mínimo y la ubicación se escriben manualmente.
+
+La primera toma se usa como portada y puede reemplazarse de forma independiente. Se intenta separar automáticamente un fondo liso conectado a los bordes y colocar el producto centrado sobre blanco. Esta función es conservadora y experimental: no usa segmentación semántica por IA ni elimina fondos complejos. Si el fondo es inconsistente, el producto toca los bordes o no hay suficiente contraste, se conserva la original. Si hay resultado, se muestra la vista previa y puedes elegir Conservar original o Usar fondo blanco antes de guardar. La original se mantiene en el borrador hasta guardar, pero no se guardan dos copias permanentes.
+
+El pitido es más fuerte y algo más largo, respetando el volumen del dispositivo. Los iconos principales se reemplazaron por SVG consistentes, sin descargas externas.
+
+Verificación adicional: exportación real del módulo ESM, dos tomas combinadas y revisión antes de guardar, selección de portada original, segmentación de fondo liso y rechazo de imágenes inseguras, regresiones de cámara y pitido. La revisión visual en navegador sigue bloqueada por el fallo de inicialización de la herramienta; la prueba en el teléfono del usuario sigue pendiente.
