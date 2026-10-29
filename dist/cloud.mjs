@@ -1,6 +1,6 @@
 import {validateInventory} from './beta.mjs';
 export class CloudInventory{
- constructor(request=fetch){this.request=request;this.baselines=new Map()}
+ constructor(request=(...args)=>globalThis.fetch(...args)){this.request=request;this.baselines=new Map()}
  async call(op,body){const response=await this.request('/api/cloud?'+new URLSearchParams(typeof body==='object'?{op}:{op,...body}),typeof body==='object'?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const result=await response.json();if(!response.ok){const e=Error(result.message||'No se pudo guardar en la nube.');e.status=response.status;throw e}return result}
  async get(op,query={}){const response=await this.request('/api/cloud?'+new URLSearchParams({op,...query}),{cache:'no-store'});const result=await response.json();if(!response.ok){const e=Error(result.message||'No se pudo consultar la nube.');e.status=response.status;throw e}return result}
  async load(environment){for(let attempt=0;attempt<3;attempt++){try{const first=await this.get('state',{environment});let next=first.nextOffset;while(next!==null){const page=await this.get('state',{environment,offset:next,revision:first.revision});first.products.push(...page.products);next=page.nextOffset}this.baselines.set(environment,structuredClone(first));return first}catch(e){if(e.status!==409||attempt===2)throw e}}}
