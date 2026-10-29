@@ -11,7 +11,10 @@ function ready(peer,status){return new Promise((resolve,reject)=>{let opened=fal
 export async function createHostSession({onStatus=()=>{},onPending=()=>{},onScan=()=>{},onPhoto=()=>{},onInventory=()=>{throw Error('Actualiza la pantalla principal para consultar su inventario.')},onMove=()=>{throw Error('La pantalla principal no admite movimientos conectados.')},PeerClass,baseURL=location.href}={}){
 const Peer=PeerClass||await peerClass(),id='mtg-'+crypto.randomUUID(),token=crypto.randomUUID(),peer=new Peer(id,options),connections=new Set(),seen=new Set(),inflight=new Set();let closed=false,approved=null,activeScan=null;const started=Date.now();
 const notify=(state,message)=>{if(!closed)onStatus({state,message})};
-const close=()=>{if(closed)return;closed=true;for(const c of connections)c.close();connections.clear();peer.destroy();onStatus({state:'closed',message:'Escáner desconectado'})};
+let reconnectTimer,reconnectAttempts=0;
+const close=()=>{if(closed)return;closed=true;clearTimeout(reconnectTimer);for(const c of connections)c.close();connections.clear();peer.destroy();onStatus({state:'closed',message:'Escáner desconectado'})};
+peer.on('disconnected',()=>{if(closed)return;notify('reconnecting','Recuperando el enlace de la computadora…');clearTimeout(reconnectTimer);if(reconnectAttempts++<3)reconnectTimer=setTimeout(()=>{if(closed||peer.destroyed)return;try{peer.reconnect()}catch{notify('error','El enlace dejó de estar disponible. Genera un QR nuevo en esta pantalla.')}},1000);else notify('error','El enlace dejó de estar disponible. Genera un QR nuevo en esta pantalla.')});
+peer.on('open',()=>{reconnectAttempts=0;clearTimeout(reconnectTimer);if(!closed)notify(approved?.open?'connected':'waiting',approved?.open?'Teléfono vinculado':'Esperando el teléfono')});
 peer.on('connection',conn=>{
 if(closed||connections.size>=3||Date.now()-started>600000){conn.close();return}connections.add(conn);let allowed=false,pending=false,photo=null;let last=0;
 const wait=setTimeout(()=>{if(!allowed)conn.close()},60000);
@@ -48,7 +51,7 @@ conn.on('close',()=>{clearTimeout(wait);if(photo)clearTimeout(photo.timer);photo
 await ready(peer,onStatus);if(closed)throw Error('Vinculación cancelada.');const url=new URL(baseURL);url.hash=new URLSearchParams({scanner:id,key:token}).toString();notify('waiting','Esperando el teléfono');
 const cancelScan=()=>{const previous=activeScan;activeScan=null;if(previous&&approved?.open)try{approved.send({type:'scan-cancel',requestId:previous.id})}catch{}};
 const requestScan=operation=>{if(!approved?.open)throw Error('El teléfono no está conectado.');if(!['in','out','count'].includes(operation))throw Error('Operación inválida.');cancelScan();const requestId=crypto.randomUUID();activeScan={id:requestId,operation};approved.send({type:'scan-request',requestId,operation});return requestId};
-return {url:url.href,close,requestScan,cancelScan,get connected(){return !!approved?.open}};
+return {url:url.href,close,requestScan,cancelScan,get available(){return !closed&&!peer.destroyed&&!peer.disconnected&&Date.now()-started<600000},get connected(){return !!approved?.open}};
 }
 export async function createPhoneSession(invite,{name='Teléfono',onStatus=()=>{},onScanRequest=()=>{},PeerClass}={}){
 if(!invite||!/^mtg-[a-f0-9-]{36}$/.test(invite.id)||!/^[a-f0-9-]{36}$/.test(invite.token))throw Error('El enlace no es válido. Genera uno nuevo desde la tablet.');
