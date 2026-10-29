@@ -1,69 +1,46 @@
-# Mi Torno Gestión · 1.0.0-beta.1
+# Mi Torno Gestión · Beta 1P
 
-Beta para probar y presentar el control de inventario del taller Mi Torno.
+Inventario compartido para Mi Torno. Conserva el diseño, el escaneo vinculado, las fotos del catálogo y el pitido anterior.
 
-## Datos y recuperación
+## Uso
 
-Pruebas e inventario real usan almacenamientos separados. La beta conserva el formato de datos versión 1 para abrir inventarios de versiones anteriores. Si detecta datos corruptos, no los reemplaza por un inventario vacío: muestra un aviso y bloquea las escrituras hasta recuperar una copia.
+1. Abre https://mi-torno-gestion.vercel.app y actualiza la página.
+2. Ingresa la clave del taller entregada por separado. Usa la misma dirección y clave en teléfono, tablet y PC.
+3. Comienza en **Pruebas**. Crea un producto con 5 unidades y una foto.
+4. Abre el otro dispositivo: el producto debe aparecer automáticamente en unos cinco segundos, fuera de formularios abiertos.
+5. Registra una entrada de 3 y una salida de 6: deben quedar 2 unidades. Revisa Movimientos y Reposición.
+6. Cierra ambas páginas y vuelve a abrirlas: el producto, foto y movimientos deben conservarse.
+7. En Datos y ajustes descarga una copia completa; incluye fotos y todo el historial. Limpiar pruebas conserva el inventario real.
 
-En Datos y ajustes puedes descargar una copia JSON con productos, fotos e historial. Restaurar valida cantidades, códigos únicos, imágenes y fechas y exige que la copia pertenezca al mismo entorno (pruebas o real). Se muestra un resumen y se confirma el reemplazo. La restauración reemplaza ese inventario; no mezcla archivos.
+## Inventario de la versión anterior
 
-Se intenta conservar una versión local anterior después de cada guardado. Su disponibilidad depende de la cuota del navegador y no sustituye una copia descargada. Si otra pestaña cambia el inventario, una ficha antigua no puede sobrescribirlo: cierra la ficha para actualizar los datos.
+La Beta 1 guardaba una copia distinta en cada navegador. Esos datos no pueden subirse desde otro equipo automáticamente.
 
-Límites de importación: 16 MB de texto, 10.000 productos, 100.000 movimientos y fotos locales JPEG/PNG/WebP de hasta 1,8 MB de texto base64. El espacio total disponible depende del navegador. Los primeros 250 movimientos se muestran en pantalla; la copia completa incluye todos.
+En el navegador que contiene la copia correcta, abre Datos y ajustes → **Subir inventario anterior de este dispositivo**. Revisa productos y cantidades; confirma solamente si deseas reemplazar el inventario activo compartido. Pruebas y Real siguen separados. La copia antigua del navegador se conserva; no se mezclan copias distintas sin revisión.
 
-## Flujo diario
+## Guardado
 
-Los botones Registrar entrada y Registrar salida abren el lector y luego la ficha con la operación seleccionada. Puedes cambiar a conteo físico, usar los botones de cantidad, revisar el antes/después y confirmar. No se aceptan fracciones, cantidades negativas ni salidas mayores al stock. Los conteos necesitan una nota y se rechazan si cambió la cantidad mientras se estaba contando.
+Los productos, cantidades, ubicaciones, fotos e historial se guardan en Supabase Postgres. Vercel sirve la aplicación y una API con sesión firmada en cookie HttpOnly. La clave compartida del taller se verifica en el servidor; no está en los archivos públicos ni en GitHub. Las tablas no tienen acceso público. Una función privada de servidor usa las credenciales de Supabase que el proveedor inyecta automáticamente.
 
-El nombre guardado en Quién registra aparece en los nuevos movimientos; es una etiqueta, no una cuenta autenticada. El motivo puede ser compra, trabajo de taller, venta, devolución, daño u otro.
+Las escrituras usan revisión y transacción: si otro dispositivo cambió el inventario, se rechaza la ficha desactualizada y se pide revisar antes de guardar. Los reintentos inmediatos usan una solicitud identificada para no duplicar una operación. La restauración carga partes temporales y reemplaza el inventario solo al confirmar todas las partes en una transacción.
 
-El stock mínimo dispara Reposición. El objetivo puede indicarse al crear/editar el producto. Si se deja en cero, se calcula un objetivo mayor que el mínimo. La lista sugiere cuántas unidades comprar y se exporta como CSV.
+## Límites de esta beta
 
-Estante, repisa/nivel y caja/recipiente son opcionales: indican dónde encontrar el producto. Ejemplo: estante A, repisa 2, caja 3.
+- Necesita internet para consultar y confirmar movimientos. No hay cola de movimientos sin conexión ni inventario local alternativo. La PWA puede abrir su interfaz sin conexión, pero no confirma operaciones.
+- La clave es compartida; no hay cuentas individuales ni permisos por persona. El nombre del encargado identifica movimientos, no autentica al usuario. La sesión dura siete días.
+- Las pantallas abiertas se actualizan por consulta periódica; un formulario abierto conserva el borrador y verifica la revisión al guardar.
+- El historial visible muestra los últimos 250 movimientos; la copia completa descarga todos. Límite validado: 10.000 productos y copias de 100.000 movimientos / 16 MB al restaurar.
+- Las fotos se guardan como imagen comprimida en la base de datos, con entrega autenticada. Máximo validado por foto: 1,8 millones de caracteres. Para catálogos grandes conviene migrar las imágenes a almacenamiento de objetos.
+- La cámara del teléfono vinculado necesita ambas páginas abiertas y depende del servicio de enlace PeerJS. El inventario compartido funciona sin esa vinculación.
+- No se extraen nombres o marcas de las fotos. La limpieza de fondo conserva las limitaciones de la Beta 1.
+- Las copias descargables son manuales; no se ha contratado retención adicional ni recuperación a un instante específico.
 
-## Escaneo y fotografías
+## Desarrollo y despliegue
 
-La cámara requiere HTTPS o localhost y permiso del navegador. La lectura de barras usa BarcodeDetector cuando existe. Se puede escribir el código o fotografiar sus números impresos y confirmar lo leído; no se autocompletan nombres ni marcas.
+Repositorio preparado para Vercel con archivos estáticos en `dist/` y API Node en `api/cloud.mjs`. Variables privadas de producción: `MT_CLOUD_URL`, `MT_CLOUD_BRIDGE_TOKEN`, `MT_SESSION_SECRET`, `MT_ACCESS_CODE`. Nunca colocar sus valores en el repositorio ni en `dist/`.
 
-Los lectores Bluetooth/USB funcionan si se emparejan en el sistema como teclado/HID y terminan con Enter. La web no empareja directamente Bluetooth ni implementa perfiles propietarios. En el campo Código del alta, Enter confirma la lectura sin guardar por sí mismo el producto.
+La función Supabase `mi-torno-cloud` contiene autenticación propia por token privado; su hash está en el código. Los módulos `server/cloud-domain.mjs`, `dist/beta.mjs` y `dist/core.mjs` se empaquetan junto al punto de entrada al desplegarla. Los SQL de `supabase/migrations/` documentan el esquema aplicado; no ejecutar de nuevo la migración inicial sobre una base existente.
 
-Vincular escáner muestra el QR de la pantalla receptora. Vincular como escáner abre el lector QR integrado en el teléfono. Se acepta automáticamente una invitación válida y temporal; no se pide otra confirmación en la principal. El lector QR usa la API nativa o jsQR 1.4.0 como alternativa. Rechaza QR ajenos y enlaces de otra dirección de la aplicación.
+Ejecuta `npm test` para las pruebas automáticas. `node server.mjs` sirve únicamente los archivos de la interfaz para desarrollo; el flujo completo requiere la API configurada, como en Vercel.
 
-Después de enviar un código, el teléfono puede tomar y enviar una foto. Si el producto ya existe, la portada se guarda en la principal sin tocar cantidades. Si es nuevo, queda en su ficha y hay que completar y crear el producto. Si se está editando otro producto, la foto queda pendiente para no cerrar esa ficha.
-
-La limpieza automática de fotos solo separa fondos lisos con suficiente contraste. No reconoce semánticamente manos ni reconstruye zonas tapadas. Retocar foto permite borrar sobre blanco, deshacer y aplicar o cancelar. Las fotos no se envían a un servicio de análisis de imágenes; el OCR de códigos se procesa en el navegador y descarga sus componentes bajo demanda.
-
-## Inventario conectado
-
-El teléfono vinculado ofrece Ver inventario conectado. Consulta productos y cantidades de la pantalla principal y confirma entradas, salidas y conteos allí. La principal valida y guarda cada solicitud. Los identificadores de solicitud evitan repetir un movimiento cuando se reintenta una confirmación. El entorno real/pruebas y los conteos obsoletos se validan en la principal.
-
-La lista se actualiza cada cinco segundos mientras está abierta y tras confirmar un movimiento. Las consultas incluyen hasta 3.000 productos y 2 MB de texto; no copian fotos. Se muestra cuántos productos se están consultando. Los catálogos mayores deben manejarse desde la principal.
-
-La sesión usa WebRTC, PeerJS 1.5.5 con su servicio público de señalización y Google STUN. Necesita internet para iniciar, ambas páginas abiertas y dispositivos activos. No se configuró TURN: ciertas redes móviles o corporativas pueden impedir la conexión. La misma Wi-Fi es preferible para el ensayo, sin garantizar todas las redes.
-
-La pantalla principal es la autoridad y su navegador guarda los datos. El teléfono no reemplaza su propio inventario local con el catálogo recibido. Cerrar/recargar una página o suspender el teléfono puede terminar la sesión. No hay base de datos propia en la nube, cuentas, permisos por usuario, sincronización permanente ni fusión de trabajo offline.
-
-## Instalación y modo sin conexión
-
-El manifiesto incluye iconos PNG de 192 y 512 px. En navegadores compatibles aparecerá Instalar app; también puedes usar el menú del navegador. La interfaz se guarda después de una primera carga completa. Los datos locales pueden consultarse y editarse sin conexión, pero la vinculación y las descargas iniciales de lectores necesitan internet.
-
-Tras actualizar, cierra y vuelve a abrir las páginas de la aplicación en ambos dispositivos antes de generar una nueva vinculación.
-
-## Verificación de esta versión
-
-- Nueve pruebas incluidas en tests/: movimientos, validación/restauración, separación real/pruebas, fotos en copias, reposición, comandos idempotentes y consulta/movimientos conectados con respuestas fragmentadas en transporte simulado.
-- Prueba de interfaz con DOM: arranque completo, alta, entrada, salida, conteo, responsable, restauración, aislamiento entre inventarios, recuperación de corrupción y conflictos de pestañas.
-- Regresiones: fotos persistidas y visibles en tarjetas al recargar datos, enlace automático, envío de fotos, HID simulado, cámara, pitido, borrador y deshacer.
-- El servidor local devolvió HTTP 200 para la página y los módulos principales. Se comprobaron la sintaxis y la integridad de los recursos de la interfaz.
-
-La automatización visual de navegador no pudo iniciarse por restricciones del entorno de Windows. No se completó revisión de píxeles ni cámara/lector físico en un teléfono, tablet o PC real. Antes de la presentación hay que ensayar GUIA-BETA1.md en los equipos del taller. La beta está preparada para esa prueba; todavía no debe ser el único registro definitivo del inventario.
-
-
-## Entrada/salida con escáner vinculado
-
-Registrar entrada y Registrar salida usan por defecto el teléfono escáner si hay uno conectado. La principal solicita abrir su lector y espera el código; la respuesta conserva la operación elegida y abre su ficha para confirmar cantidades. El teléfono debe mantener abierta y visible la aplicación; la web no puede desbloquearlo ni traer una pestaña de fondo al frente. Si el navegador necesita permiso de cámara, se concede o se usa Reintentar cámara en ese teléfono.
-
-La principal puede cancelar, solicitar de nuevo o elegir Usar cámara de este dispositivo. Las lecturas de solicitudes canceladas se rechazan. Con un lector HID activado se espera la lectura de teclado en lugar de abrir una cámara. Si no hay lector activo, se usa la cámara local. Escanear siguiente conserva la misma ruta y operación.
-
-Se restauró el pitido anterior (1450 Hz, aproximadamente 0,19 segundos), conservando el control de volumen. La prueba scan-request.test.mjs comprueba la solicitud remota, entrada/salida y cancelación; pasaron nueve pruebas y las regresiones de interfaz, HID y modo conectado. La prueba física de apertura de cámara en el teléfono sigue pendiente.
+La revisión de Supabase informa RLS sin políticas porque estas tablas son deliberadamente privadas para los clientes públicos. Referencia: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy. También informa un índice opcional en la relación de sesiones de importación: https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys.

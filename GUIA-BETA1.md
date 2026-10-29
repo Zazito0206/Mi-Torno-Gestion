@@ -1,37 +1,46 @@
-# Mi Torno Gestión · Beta 1
+# Mi Torno Gestión · Beta 1P
 
-## Preparar la presentación
+Inventario compartido para Mi Torno. Conserva el diseño, el escaneo vinculado, las fotos del catálogo y el pitido anterior.
 
-1. Espera a que Vercel termine el despliegue de Beta 1. Cierra y vuelve a abrir la aplicación en ambos dispositivos.
-2. Usa la tablet o computadora como **pantalla principal**. Selecciona **Pruebas**, sin tocar el inventario real.
-3. En Datos y ajustes, escribe quién registra. Prueba el nuevo bip y ajusta su volumen.
-4. Si ya tienes pruebas que quieres conservar, descarga una copia antes de vaciarlas.
+## Uso
 
-## Recorrido de cinco minutos
+1. Abre https://mi-torno-gestion.vercel.app y actualiza la página.
+2. Ingresa la clave del taller entregada por separado. Usa la misma dirección y clave en teléfono, tablet y PC.
+3. Comienza en **Pruebas**. Crea un producto con 5 unidades y una foto.
+4. Abre el otro dispositivo: el producto debe aparecer automáticamente en unos cinco segundos, fuera de formularios abiertos.
+5. Registra una entrada de 3 y una salida de 6: deben quedar 2 unidades. Revisa Movimientos y Reposición.
+6. Cierra ambas páginas y vuelve a abrirlas: el producto, foto y movimientos deben conservarse.
+7. En Datos y ajustes descarga una copia completa; incluye fotos y todo el historial. Limpiar pruebas conserva el inventario real.
 
-**1. Registrar y encontrar.** Crea Ketchup, código del envase, marca escrita manualmente, 5 unidades, mínimo 2 y objetivo 10. Añade una foto. La ubicación puede ser A / 1 / 01; también puedes dejarla vacía. Busca el producto por nombre o código.
+## Inventario de la versión anterior
 
-**2. Entradas y salidas.** Registra una entrada de 3: quedan **8**. Registra una salida de 6 por trabajo: quedan **2**. Muestra la diferencia antes de confirmar y el responsable en el historial.
+La Beta 1 guardaba una copia distinta en cada navegador. Esos datos no pueden subirse desde otro equipo automáticamente.
 
-**3. Reposición.** Abre Reposición. Debe sugerir comprar **8** para alcanzar el objetivo de 10. Descarga la lista de compra.
+En el navegador que contiene la copia correcta, abre Datos y ajustes → **Subir inventario anterior de este dispositivo**. Revisa productos y cantidades; confirma solamente si deseas reemplazar el inventario activo compartido. Pruebas y Real siguen separados. La copia antigua del navegador se conserva; no se mezclan copias distintas sin revisión.
 
-**4. Teléfono conectado.** En la principal pulsa Vincular escáner → Usar mi teléfono. En el teléfono pulsa Vincular como escáner y lee el QR dentro de la aplicación. La aceptación es automática. Prueba escanear y enviar una foto del producto: si ya existe, su portada se guarda en la principal.
+## Guardado
 
-**5. Existencias desde el teléfono.** En el teléfono entra a Ver inventario conectado. Debe mostrar las 2 unidades de la principal. Confirma una salida de 1 y verifica **1** en ambos. Las entradas/salidas siempre requieren confirmación. Los cambios del listado conectado se refrescan cada cinco segundos.
+Los productos, cantidades, ubicaciones, fotos e historial se guardan en Supabase Postgres. Vercel sirve la aplicación y una API con sesión firmada en cookie HttpOnly. La clave compartida del taller se verifica en el servidor; no está en los archivos públicos ni en GitHub. Las tablas no tienen acceso público. Una función privada de servidor usa las credenciales de Supabase que el proveedor inyecta automáticamente.
 
-**6. Cerrar con un respaldo.** En la principal descarga una copia JSON. La función Restaurar permite revisar su contenido antes de reemplazar el inventario activo. No restaures durante una operación de otra persona.
+Las escrituras usan revisión y transacción: si otro dispositivo cambió el inventario, se rechaza la ficha desactualizada y se pide revisar antes de guardar. Los reintentos inmediatos usan una solicitud identificada para no duplicar una operación. La restauración carga partes temporales y reemplaza el inventario solo al confirmar todas las partes en una transacción.
 
-## Qué estás presentando
+## Límites de esta beta
 
-Una beta funcional para registrar productos y fotos, escanear códigos, controlar cantidades, revisar movimientos, preparar reposición, recuperar copias y trabajar desde el teléfono conectado con una pantalla principal.
+- Necesita internet para consultar y confirmar movimientos. No hay cola de movimientos sin conexión ni inventario local alternativo. La PWA puede abrir su interfaz sin conexión, pero no confirma operaciones.
+- La clave es compartida; no hay cuentas individuales ni permisos por persona. El nombre del encargado identifica movimientos, no autentica al usuario. La sesión dura siete días.
+- Las pantallas abiertas se actualizan por consulta periódica; un formulario abierto conserva el borrador y verifica la revisión al guardar.
+- El historial visible muestra los últimos 250 movimientos; la copia completa descarga todos. Límite validado: 10.000 productos y copias de 100.000 movimientos / 16 MB al restaurar.
+- Las fotos se guardan como imagen comprimida en la base de datos, con entrega autenticada. Máximo validado por foto: 1,8 millones de caracteres. Para catálogos grandes conviene migrar las imágenes a almacenamiento de objetos.
+- La cámara del teléfono vinculado necesita ambas páginas abiertas y depende del servicio de enlace PeerJS. El inventario compartido funciona sin esa vinculación.
+- No se extraen nombres o marcas de las fotos. La limpieza de fondo conserva las limitaciones de la Beta 1.
+- Las copias descargables son manuales; no se ha contratado retención adicional ni recuperación a un instante específico.
 
-## Límites que conviene explicar
+## Desarrollo y despliegue
 
-- El registro persistente está en el navegador de la pantalla principal. El modo conectado funciona mientras las páginas permanezcan abiertas; no es una base de datos permanente en la nube.
-- Sin ese enlace, cada navegador tiene su inventario local independiente. No se combinan automáticamente cambios hechos por separado o sin conexión.
-- El nombre del responsable es una etiqueta del historial; todavía no hay cuentas y permisos por persona.
-- Las fotos no rellenan nombres o marcas. El fondo blanco automático requiere un fondo sencillo; manos y detalles se retocan manualmente.
-- La lectura de barras depende del navegador. El QR de vinculación cuenta con lector alternativo. Algunas redes pueden impedir conectar dispositivos; es preferible ensayar con ambos en la misma Wi-Fi.
-- Exporta copias: borrar los datos del navegador también borra su inventario local.
+Repositorio preparado para Vercel con archivos estáticos en `dist/` y API Node en `api/cloud.mjs`. Variables privadas de producción: `MT_CLOUD_URL`, `MT_CLOUD_BRIDGE_TOKEN`, `MT_SESSION_SECRET`, `MT_ACCESS_CODE`. Nunca colocar sus valores en el repositorio ni en `dist/`.
 
-Antes de presentar, haz este recorrido una vez en tus dispositivos. La cámara física y el aspecto final en esos equipos siguen necesitando ese ensayo.
+La función Supabase `mi-torno-cloud` contiene autenticación propia por token privado; su hash está en el código. Los módulos `server/cloud-domain.mjs`, `dist/beta.mjs` y `dist/core.mjs` se empaquetan junto al punto de entrada al desplegarla. Los SQL de `supabase/migrations/` documentan el esquema aplicado; no ejecutar de nuevo la migración inicial sobre una base existente.
+
+Ejecuta `npm test` para las pruebas automáticas. `node server.mjs` sirve únicamente los archivos de la interfaz para desarrollo; el flujo completo requiere la API configurada, como en Vercel.
+
+La revisión de Supabase informa RLS sin políticas porque estas tablas son deliberadamente privadas para los clientes públicos. Referencia: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy. También informa un índice opcional en la relación de sesiones de importación: https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys.
