@@ -84,8 +84,16 @@ SPP/serie, lectores con aplicaciones propietarias y perfiles distintos de HID no
 5. Desde el teléfono pulsa Escanear y enviar. La pantalla receptora abre la ficha; si estás dando de alta un producto, llena su código. Si hay otra ficha abierta, conserva hasta diez lecturas pendientes para no descartarla. El teléfono espera confirmación de recepción. No se modifican cantidades por recibir un código.
 6. Usa Desvincular al terminar. La recarga o cierre de una página termina su sesión; el teléfono en segundo plano puede perder conexión. Si falla, vuelve a vincular.
 
-La invitación permite nuevas conexiones durante diez minutos y requiere autorización en la pantalla receptora; se usa un identificador y una clave aleatorios, guardados en el fragmento del enlace. Solo se admite un teléfono autorizado por sesión. La vinculación no copia catálogo, fotos, movimientos ni existencias.
+La invitación permite nuevas conexiones durante diez minutos y requiere autorización en la pantalla receptora; se usa un identificador y una clave aleatorios, guardados en el fragmento del enlace. Solo se admite un teléfono autorizado por sesión. La vinculación no sincroniza el catálogo, los movimientos ni las existencias. El teléfono puede enviar una foto de catálogo asociada al código escaneado, que se revisa antes de aplicarla.
 
 Se utiliza WebRTC con PeerJS 1.5.5 y su servicio público de señalización, y Google STUN para descubrir la conexión. Requiere internet para cargar los componentes y establecer el enlace, sin backend propio de inventario. Ambos navegadores deben permanecer abiertos. No se configuró un servidor TURN: algunas redes móviles, corporativas o con NAT restrictivo pueden impedir la conexión; probar la misma Wi-Fi ayuda, sin garantizarla. La disponibilidad del servicio público no está bajo control del taller.
 
 Verificado: scripts reales de PeerJS y QR, creación local del QR, respuesta OPEN del servidor de señalización, autorización y envío con confirmación en transporte simulado, rechazo antes de autorizar, protección de duplicados, desconexión, entrada HID simulada y registro por código sin guardar automáticamente. Pendiente la prueba WebRTC completa entre dispositivos físicos y con un lector Bluetooth real.
+
+## Foto desde el teléfono vinculado
+
+Después de que la pantalla receptora confirme el código, el teléfono permite Tomar foto para el catálogo. La foto se reduce a 800 px y se envía por el enlace autorizado, en fragmentos con confirmación de recepción (límite aproximado 375 KB de JPEG). No se envía al servicio de señalización como archivo ni se guarda automáticamente en el inventario.
+
+Si la pantalla receptora tiene abierto el alta del mismo código, muestra una vista previa con Usar como foto del catálogo. En otro caso, queda pendiente bajo el botón Vincular escáner; cierra la ficha actual y pulsa Revisar foto del catálogo. La revisión abre el producto existente o una ficha nueva con ese código. Aplicar la imagen usa el mismo flujo de portada, fondo blanco y retoque; todavía debes confirmar Guardar cambios o Crear producto.
+
+Verificado en transporte simulado: envío y reconstrucción de fotos en varios fragmentos, asociación de código, confirmación y rechazo de imágenes inválidas. También pasaron las regresiones de vinculación, entrada HID y fotos sin autollenado. Pendiente la prueba con cámara y enlace en dos dispositivos físicos.
