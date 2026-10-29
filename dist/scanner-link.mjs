@@ -17,7 +17,7 @@ const wait=setTimeout(()=>{if(!allowed)conn.close()},60000);
 conn.on('data',async data=>{
 if(closed||!data||typeof data!=='object')return;
 if(data.type==='hello'&&!pending&&!allowed){if(data.token!==token||approved){conn.close();return}pending=true;const name=typeof data.name==='string'?data.name.slice(0,50):'Teléfono';
-onPending({name,approve:()=>{if(closed||!conn.open||approved&&approved!==conn)return;clearTimeout(wait);approved=conn;allowed=true;conn.send({type:'ready'});notify('connected','Teléfono vinculado')},reject:()=>conn.close()});notify('pending','Autoriza el teléfono para recibir lecturas');return}
+onPending({name,approve:()=>{if(closed||!conn.open||approved&&approved!==conn)return;clearTimeout(wait);approved=conn;allowed=true;conn.send({type:'ready'});notify('connected','Teléfono vinculado')},reject:()=>conn.close()});if(!allowed)notify('pending','Conectando el teléfono…');return}
 if(data.type==='ping'){if(allowed)conn.send({type:'pong'});return}
 if(allowed&&approved===conn&&data.type==='photo-start'){
 if(typeof data.id!=='string'||data.id.length>80||!cleanScan(data.code)||!Number.isInteger(data.parts)||data.parts<1||data.parts>42||!Number.isInteger(data.length)||data.length>500000||data.length<24)return;
@@ -47,8 +47,8 @@ const Peer=PeerClass||await peerClass(),peer=new Peer(undefined,options),pending
 const notify=(state,message)=>{if(!closed)onStatus({state,message})};
 const close=()=>{if(closed)return;closed=true;allowed=false;clearInterval(heartbeat);clearTimeout(connectTimeout);for(const item of pending.values()){clearTimeout(item.timeout);item.reject(Error('El escáner se desconectó.'))}pending.clear();conn?.close();peer.destroy();onStatus({state:'closed',message:'Teléfono desconectado'})};
 try{await ready(peer,onStatus);if(closed)throw Error('Enlace cancelado.');conn=peer.connect(invite.id,{reliable:true,serialization:'json',label:'mi-torno-scanner-v1'});
-connectTimeout=setTimeout(()=>{if(!allowed){notify('error','No se completó la vinculación. Revisa la autorización en la tablet y prueba la misma red Wi-Fi.');close()}},60000);
-conn.on('open',()=>{conn.send({type:'hello',token:invite.token,name:String(name).slice(0,50)});notify('pending','Conectando. Autoriza este teléfono en la pantalla receptora.')});
+connectTimeout=setTimeout(()=>{if(!allowed){notify('error','No se completó la vinculación. Prueba la misma red Wi-Fi y genera un enlace nuevo.');close()}},60000);
+conn.on('open',()=>{conn.send({type:'hello',token:invite.token,name:String(name).slice(0,50)});notify('pending','Conectando con la pantalla receptora…')});
 conn.on('data',data=>{if(!data||typeof data!=='object')return;if(data.type==='ready'){allowed=true;clearTimeout(connectTimeout);lastPong=Date.now();notify('connected','Vinculado. Listo para enviar códigos');heartbeat=setInterval(()=>{if(Date.now()-lastPong>25000){notify('error','Se perdió la conexión. Vuelve a vincular el teléfono.');close();return}if(conn.open)conn.send({type:'ping'})},8000)}else if(data.type==='pong')lastPong=Date.now();else if((data.type==='ack'||data.type==='busy')&&pending.has(data.id)){const task=pending.get(data.id);clearTimeout(task.timeout);pending.delete(data.id);if(data.type==='ack')task.resolve();else task.reject(Error('La pantalla está ocupada. Espera un momento y vuelve a escanear.'))}});
 conn.on('close',close);conn.on('error',()=>{notify('error','No se pudo conectar con la pantalla receptora.');close()});
 }catch(e){close();throw e}
