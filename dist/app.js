@@ -1,3 +1,4 @@
+import {makeQRDetector} from './scanner-link.mjs';
 import {installScannerLink} from './scanner-ui.mjs';
 import {search,move} from './core.mjs';
 import {catalogPicture,photoEditor} from './photo.mjs';
@@ -71,9 +72,10 @@ if(commit(()=>{const next={...p,id:p.id||crypto.randomUUID(),name:data.name.trim
 }
 function identify(code){stop();const p=db.products.find(p=>p.code.toLowerCase()===code.trim().toLowerCase());if(p)detail(p.id);else{modal(`<h2>Código sin registrar</h2><p>${esc(code)} no está en este inventario. No se consultan catálogos externos.</p><button id="newCode" class="primary">Crear producto con este código</button>`);$('#newCode').onclick=()=>productForm({},code)}}
 async function scanner(options={}){
+const qrOnly=options.qrOnly===true;
 armFeedback();
 const onCode=typeof options.onCode==='function'?options.onCode:identify;
-modal(`<h2>Escanear producto</h2><p>Apunta al código de barras. La lectura abre la ficha; no suma existencias automáticamente.</p><div class="scan-window"><video id="camera" autoplay playsinline muted></video><div class="scan-guide" aria-hidden="true"></div></div><p class="scan-tip">Alinea el código dentro del recuadro</p><p id="cameraStatus" role="status">Solicitando acceso a la cámara…</p><button id="retryCamera" type="button">Reintentar cámara</button> <button id="testBeep" type="button">${icon('volume')} Probar pitido</button><form id="manualCode"><label>Código de barras o impreso<input name="code" required placeholder="Escribe el código si no se puede leer"></label><button class="primary">Buscar código</button></form><label class="code-photo-label">${icon('camera')} Fotografiar código impreso<input type="file" id="printedCodePhoto" accept="image/*" capture="environment"></label><p id="printedCodeStatus" role="status"></p><div id="printedCodeReview"></div><p>Puedes escanear barras, leer los números impresos en una foto o escribirlos manualmente.</p>`);
+modal(qrOnly?`<h2>Vincular como escáner</h2><p>Apunta al QR que muestra la tablet o computadora en Vincular escáner.</p><div class="scan-window qr-window"><video id="camera" autoplay playsinline muted></video><div class="scan-guide" aria-hidden="true"></div></div><p id="cameraStatus" role="status">Solicitando acceso a la cámara…</p><button id="retryCamera" type="button">Reintentar cámara</button><button id="testBeep" type="button">Probar pitido</button><form id="manualCode"><label>También puedes pegar el enlace de vinculación<input name="code" required placeholder="Pega el enlace de la pantalla receptora" autocomplete="off"></label><button class="primary">Vincular con este enlace</button></form>`:`<h2>Escanear producto</h2><p>Apunta al código de barras. La lectura abre la ficha; no suma existencias automáticamente.</p><div class="scan-window"><video id="camera" autoplay playsinline muted></video><div class="scan-guide" aria-hidden="true"></div></div><p class="scan-tip">Alinea el código dentro del recuadro</p><p id="cameraStatus" role="status">Solicitando acceso a la cámara…</p><button id="retryCamera" type="button">Reintentar cámara</button> <button id="testBeep" type="button">${icon('volume')} Probar pitido</button><form id="manualCode"><label>Código de barras o impreso<input name="code" required placeholder="Escribe el código si no se puede leer"></label><button class="primary">Buscar código</button></form><label class="code-photo-label">${icon('camera')} Fotografiar código impreso<input type="file" id="printedCodePhoto" accept="image/*" capture="environment"></label><p id="printedCodeStatus" role="status"></p><div id="printedCodeReview"></div><p>Puedes escanear barras, leer los números impresos en una foto o escribirlos manualmente.</p>`);
 if(typeof options.onBack==='function'){const back=document.createElement('button');back.type='button';back.textContent='← Volver al producto';back.onclick=()=>{stop();options.onBack()};$('#dialogBody').prepend(back)}
 const session=cameraSession,video=$('#camera'),status=$('#cameraStatus');
 const active=()=>session===cameraSession&&$('#modal').open&&$('#camera')===video;
@@ -82,7 +84,7 @@ $('#testBeep').onclick=()=>{armFeedback();beep()};
 let accepted=false;
 const accept=value=>{value=String(value||'').trim();if(!value||accepted)return;accepted=true;beep();stop();onCode(value)};
 $('#manualCode').onsubmit=e=>{e.preventDefault();armFeedback();accept(e.target.code.value)};
-$('#printedCodePhoto').onchange=async e=>{
+const printedPhoto=$('#printedCodePhoto');if(printedPhoto)printedPhoto.onchange=async e=>{
 armFeedback();const file=e.target.files[0];if(!file)return;
 stream?.getTracks().forEach(t=>t.stop());stream=null;clearTimeout(timer);
 status.textContent='Cámara pausada para leer la foto. Puedes reintentar la cámara después.';
@@ -104,6 +106,7 @@ stream=acquired;video.srcObject=acquired;await video.play();
 if(!active())return;
 status.textContent='Cámara activa. Comprobando lectura automática…';
 let detector;
+if(qrOnly){status.textContent='Preparando lector QR…';detector=await makeQRDetector()}else{
 try{
 if(!('BarcodeDetector' in window))throw Error();
 const formats=await window.BarcodeDetector.getSupportedFormats();
@@ -112,12 +115,12 @@ detector=new window.BarcodeDetector({formats});
 }catch{
 if(active())status.textContent='Cámara activa. Este navegador no ofrece lectura automática de barras; fotografía los números del código o escríbelos abajo.';
 return;
-}
+}}
 if(!active())return;
-status.textContent='Cámara activa. Coloca el código dentro de la imagen.';
+status.textContent=qrOnly?'Cámara activa. Centra el QR de la pantalla receptora.':'Cámara activa. Coloca el código dentro de la imagen.';
 async function tick(){
 if(!active()||!stream)return;
-try{const canvas=document.createElement('canvas');const ratio=2.4,vw=video.videoWidth,vh=video.videoHeight;if(!vw||!vh)throw Error();const w=Math.min(vw,vh*ratio),h=w/ratio;canvas.width=Math.min(w,1280);canvas.height=canvas.width/ratio;canvas.getContext('2d').drawImage(video,(vw-w)/2,(vh-h)/2,w,h,0,0,canvas.width,canvas.height);const results=await detector.detect(canvas);if(!active())return;if(results.length){accept(results[0].rawValue);return}}catch{if(active())status.textContent='Cámara activa. No se pudo leer el código; acércalo con buena luz o escríbelo abajo.'}
+try{const canvas=document.createElement('canvas');const ratio=qrOnly?1:2.4,vw=video.videoWidth,vh=video.videoHeight;if(!vw||!vh)throw Error();const w=Math.min(vw,vh*ratio),h=w/ratio;canvas.width=Math.min(w,1280);canvas.height=canvas.width/ratio;canvas.getContext('2d').drawImage(video,(vw-w)/2,(vh-h)/2,w,h,0,0,canvas.width,canvas.height);const results=await detector.detect(canvas);if(!active())return;if(results.length){accept(results[0].rawValue);return}}catch{if(active())status.textContent='Cámara activa. No se pudo leer el código; acércalo con buena luz o escríbelo abajo.'}
 if(active())timer=setTimeout(tick,450);
 }
 tick();

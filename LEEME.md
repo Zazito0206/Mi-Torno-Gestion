@@ -97,3 +97,11 @@ Después de que la pantalla receptora confirme el código, el teléfono permite 
 Si la pantalla receptora tiene abierto el alta del mismo código, muestra una vista previa con Usar como foto del catálogo. En otro caso, queda pendiente bajo el botón Vincular escáner; cierra la ficha actual y pulsa Revisar foto del catálogo. La revisión abre el producto existente o una ficha nueva con ese código. Aplicar la imagen usa el mismo flujo de portada, fondo blanco y retoque; todavía debes confirmar Guardar cambios o Crear producto.
 
 Verificado en transporte simulado: envío y reconstrucción de fotos en varios fragmentos, asociación de código, confirmación y rechazo de imágenes inválidas. También pasaron las regresiones de vinculación, entrada HID y fotos sin autollenado. Pendiente la prueba con cámara y enlace en dos dispositivos físicos.
+
+## Lector QR integrado para vincular el teléfono
+
+Al lado de Vincular escáner aparece Vincular como escáner. En el teléfono, pulsa este segundo botón, permite la cámara y apunta al QR de la pantalla receptora. Al reconocer una invitación válida de la misma dirección de la aplicación, inicia la conexión; solo falta autorizar el teléfono en la tablet. No necesitas abrir la cámara externa del sistema. También puedes pegar el enlace en el mismo lector.
+
+El visor de vinculación es cuadrado. Utiliza BarcodeDetector con formato QR cuando está disponible y jsQR 1.4.0 descargado bajo demanda como alternativa. No abre direcciones de QR arbitrarios: rechaza códigos de productos, enlaces inválidos y enlaces de otra dirección web. La cámara se detiene al leer o salir. La vinculación Bluetooth/USB y el escaneo de productos mantienen su comportamiento.
+
+Comprobación: lectura real con jsQR de una imagen QR generada con un enlace de la aplicación, sintaxis y regresiones de cámara, lectura de barras, entrada HID y transporte de vinculación/fotos. La prueba de cámara entre dispositivos físicos sigue pendiente.

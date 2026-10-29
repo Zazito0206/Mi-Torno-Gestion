@@ -43,6 +43,15 @@ function hardwarePanel(){
 modal('<h2>Escáner Bluetooth o USB</h2><ol><li>En los ajustes Bluetooth de la tablet, empareja el lector. Si es USB, conéctalo.</li><li>Configura el lector en modo teclado / HID, con Enter al final.</li><li>Activa la entrada y prueba un código.</li></ol><p>La web recibe lo que el lector escribe; no puede emparejar Bluetooth directamente. Lectores que requieren una aplicación propia pueden no ser compatibles.</p><button type="button" id="activateHardware" class="primary">Activar entrada del lector</button><form id="hardwareForm"><label>Código de prueba<input name="code" id="hardwareCode" autocomplete="off" placeholder="Toca aquí y escanea"></label><button>Usar código leído</button></form>');
 $('#activateHardware').onclick=()=>{armFeedback();hardware=true;message='Entrada de lector activada · modo teclado';state='hardware';update();$('#hardwareCode').focus()};$('#hardwareForm').onsubmit=e=>{e.preventDefault();const code=cleanScan(e.target.elements.namedItem('code').value);if(!code){toast('Escanea primero un código.');return}armFeedback();beep();identify(code)};
 }
+function linkAsScanner(){
+armFeedback();if(phone?.connected){phonePanel();return}if(host){toast('Esta pantalla está recibiendo un escáner. Desvincúlalo primero para usarla como teléfono escáner.');return}
+scanner({qrOnly:true,onBack:()=>$('#linkScanner').click(),onCode:value=>{
+const parsed=parseScannerInvite(value);let sameSite=false;try{sameSite=new URL(value).origin===new URL(location.href).origin}catch{}
+if(!parsed||!sameSite){modal('<h2>Este QR no es de vinculación</h2><p>Escanea el QR generado por Vincular escáner en la tablet o computadora de Mi Torno Gestión.</p><button id="retryLinkQR" type="button" class="primary">Volver a leer QR</button>');$('#retryLinkQR').onclick=linkAsScanner;return}
+invite=parsed;connectPhone();
+}});
+}
+$('#linkAsScanner').onclick=linkAsScanner;
 $('#linkScanner').onclick=()=>{
 armFeedback();if(role==='phone'&&phone){phonePanel();return}if(host){showHost();return}if(invite){showPhoneInvite();return}
 modal('<h2>Vincular escáner</h2><p>Elige cómo recibir los códigos en esta pantalla.</p><button type="button" id="chooseHardware" class="primary">'+icon('scan')+' Lector Bluetooth / USB</button><button type="button" id="choosePhone">'+icon('camera')+' Usar mi teléfono como escáner</button><p>El lector físico funciona como teclado. El teléfono se conecta mediante QR o enlace, con autorización en esta pantalla.</p>');$('#chooseHardware').onclick=hardwarePanel;$('#choosePhone').onclick=startHost;
