@@ -61,3 +61,31 @@ Si no usas repisas ni cajas, deja esos campos vacíos. Tampoco es obligatorio in
 ## Verificación de esta actualización
 
 Pruebas de que elegir foto no ejecuta OCR ni cambia nombre/marca, selección entre original y portada retocada, guardado de la versión elegida, borrador con mouse/tacto simulado, deshacer y aplicación/cancelación explícitas. Pasaron las regresiones de cámara y pitido y la comprobación de sintaxis. La revisión visual y el gesto en un teléfono real siguen pendientes por el fallo de inicialización de la herramienta de navegador.
+
+## Vincular escáner · Tablet, PC y móvil
+
+En la pantalla principal aparece **Vincular escáner**.
+
+### Lector Bluetooth o USB
+
+1. Empareja el lector desde los ajustes Bluetooth del dispositivo, o conecta el USB con el adaptador adecuado.
+2. Configúralo como teclado/HID, con Enter como sufijo. La web no empareja Bluetooth ni detecta por sí misma qué modelo está conectado.
+3. En Vincular escáner → Lector Bluetooth / USB, activa la entrada y prueba en el campo de código.
+4. En el alta puedes enfocar Código y escanear. Enter en ese campo no guarda el producto. Con la entrada activada, las lecturas rápidas fuera de campos también abren fichas o quedan pendientes si hay otra ficha abierta.
+
+SPP/serie, lectores con aplicaciones propietarias y perfiles distintos de HID no están implementados. El emparejamiento del sistema puede persistir, pero la activación de entrada en la web pertenece a esta pestaña y debe reactivarse tras recargar.
+
+### Teléfono como escáner remoto
+
+1. En la tablet o PC receptora, elige el inventario de pruebas o real que usarás.
+2. Pulsa Vincular escáner → Usar mi teléfono como escáner.
+3. Abre el QR con la cámara normal del teléfono, o copia y abre el enlace en él. El QR se genera en el navegador y no se envía a un generador de imágenes externo.
+4. En el teléfono pulsa Vincular con la pantalla receptora. En la tablet autoriza el teléfono mostrado. El diálogo de vinculación se cierra para que puedas recibir fichas.
+5. Desde el teléfono pulsa Escanear y enviar. La pantalla receptora abre la ficha; si estás dando de alta un producto, llena su código. Si hay otra ficha abierta, conserva hasta diez lecturas pendientes para no descartarla. El teléfono espera confirmación de recepción. No se modifican cantidades por recibir un código.
+6. Usa Desvincular al terminar. La recarga o cierre de una página termina su sesión; el teléfono en segundo plano puede perder conexión. Si falla, vuelve a vincular.
+
+La invitación permite nuevas conexiones durante diez minutos y requiere autorización en la pantalla receptora; se usa un identificador y una clave aleatorios, guardados en el fragmento del enlace. Solo se admite un teléfono autorizado por sesión. La vinculación no copia catálogo, fotos, movimientos ni existencias.
+
+Se utiliza WebRTC con PeerJS 1.5.5 y su servicio público de señalización, y Google STUN para descubrir la conexión. Requiere internet para cargar los componentes y establecer el enlace, sin backend propio de inventario. Ambos navegadores deben permanecer abiertos. No se configuró un servidor TURN: algunas redes móviles, corporativas o con NAT restrictivo pueden impedir la conexión; probar la misma Wi-Fi ayuda, sin garantizarla. La disponibilidad del servicio público no está bajo control del taller.
+
+Verificado: scripts reales de PeerJS y QR, creación local del QR, respuesta OPEN del servidor de señalización, autorización y envío con confirmación en transporte simulado, rechazo antes de autorizar, protección de duplicados, desconexión, entrada HID simulada y registro por código sin guardar automáticamente. Pendiente la prueba WebRTC completa entre dispositivos físicos y con un lector Bluetooth real.
