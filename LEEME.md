@@ -1,107 +1,61 @@
-# Mi Torno Gestión · Beta 0.1
+# Mi Torno Gestión · 1.0.0-beta.1
 
-Beta con almacenamiento local, lista para servir en Vercel; sin backend ni sincronización. Abre una terminal en esta carpeta y ejecuta `node server.mjs` (requiere Node.js). Visita http://localhost:4173. No abras index.html directamente: los módulos y la PWA requieren un servidor.
+Beta para probar y presentar el control de inventario del taller Mi Torno.
 
-## Prueba sugerida
+## Datos y recuperación
 
-1. Empieza en **Modo de pruebas**, vacío por defecto. Crea tu primer producto con foto, cantidad, ubicación y código. Luego búscalo por nombre, marca o código.
-2. Abre el producto que creaste, suma 3 unidades y registra una salida de 2. Comprueba el historial.
-3. Selecciona conteo físico, escribe el total contado y un motivo. Revisa la diferencia antes de confirmar.
-4. Crea un producto con foto, cantidad, mínimo y ubicación. Repite su código: se ofrecerá abrir la ficha existente para sumar, corregir o cambiar ubicación.
-5. En Escanear, introduce el código que registraste manualmente. La ficha debe abrirse sin modificar cantidades. Un código desconocido permite crear una ficha.
-6. Cambia a Inventario real y crea un producto de prueba reconocible. Desde Datos y ajustes limpia las pruebas. Confirma que ese producto real permanece. Los ejemplos son ficticios y no se mezclan con el real.
-7. Exporta una copia JSON desde Datos y ajustes. Guarda el archivo fuera del navegador.
+Pruebas e inventario real usan almacenamientos separados. La beta conserva el formato de datos versión 1 para abrir inventarios de versiones anteriores. Si detecta datos corruptos, no los reemplaza por un inventario vacío: muestra un aviso y bloquea las escrituras hasta recuperar una copia.
 
-## Móvil y PWA
+En Datos y ajustes puedes descargar una copia JSON con productos, fotos e historial. Restaurar valida cantidades, códigos únicos, imágenes y fechas y exige que la copia pertenezca al mismo entorno (pruebas o real). Se muestra un resumen y se confirma el reemplazo. La restauración reemplaza ese inventario; no mezcla archivos.
 
-La interfaz se adapta a móvil, tablet y PC. Para probar la cámara en un teléfono, sirve `dist/` en un alojamiento HTTPS de confianza. `localhost` en el teléfono apunta al propio teléfono, no a la laptop. Este servidor de desarrollo acepta solo conexiones locales. La URL de Vercel depende del despliegue de tu cuenta. No hay sincronización entre equipos.
+Se intenta conservar una versión local anterior después de cada guardado. Su disponibilidad depende de la cuota del navegador y no sustituye una copia descargada. Si otra pestaña cambia el inventario, una ficha antigua no puede sobrescribirlo: cierra la ficha para actualizar los datos.
 
-La lectura automática usa BarcodeDetector cuando existe en el navegador (su disponibilidad varía). Requiere permiso de cámara y contexto seguro. Hay entrada manual como alternativa. Identificar significa encontrar un código registrado en el catálogo activo, no consultar una base mundial de productos. También puedes fotografiar los números de un código impreso y revisar el resultado antes de aceptarlo. Se validan dígitos de control de códigos GTIN; referencias alfanuméricas requieren un rótulo como SKU o Código.
+Límites de importación: 16 MB de texto, 10.000 productos, 100.000 movimientos y fotos locales JPEG/PNG/WebP de hasta 1,8 MB de texto base64. El espacio total disponible depende del navegador. Los primeros 250 movimientos se muestran en pantalla; la copia completa incluye todos.
 
-El manifiesto permite instalación en navegadores compatibles; incluye icono SVG y service worker para guardar la interfaz tras la primera carga. Algunos navegadores pueden requerir iconos PNG adicionales para ofrecer instalación. Prueba modo avión después de una primera carga completa. Las fotos se reducen a 800 px para reducir almacenamiento.
+## Flujo diario
 
-## Datos y límites
+Los botones Registrar entrada y Registrar salida abren el lector y luego la ficha con la operación seleccionada. Puedes cambiar a conteo físico, usar los botones de cantidad, revisar el antes/después y confirmar. No se aceptan fracciones, cantidades negativas ni salidas mayores al stock. Los conteos necesitan una nota y se rechazan si cambió la cantidad mientras se estaba contando.
 
-- Los inventarios real y de pruebas usan claves locales distintas. El historial pertenece a cada inventario.
-- Solo cantidades enteras no negativas; una salida no puede superar el stock.
-- Un conteo requiere motivo y registra antes, después y diferencia.
-- Exportación JSON disponible; importación/restauración aún pendiente. No es un sistema de copias automático.
-- El almacenamiento del navegador tiene cuota y puede borrarse. No hay cuentas, permisos, respaldo en servidor ni protección para varias pestañas simultáneas. Usa una sola pestaña para editar.
-- No utilizar aún como único registro de inventario real del taller.
+El nombre guardado en Quién registra aparece en los nuevos movimientos; es una etiqueta, no una cuenta autenticada. El motivo puede ser compra, trabajo de taller, venta, devolución, daño u otro.
 
-## Arquitectura para la siguiente versión
+El stock mínimo dispara Reposición. El objetivo puede indicarse al crear/editar el producto. Si se deja en cero, se calcula un objetivo mayor que el mínimo. La lista sugiere cuántas unidades comprar y se exporta como CSV.
 
-`core.mjs` concentra búsqueda y reglas de movimientos. `app.js` contiene la interfaz y el adaptador local de almacenamiento. Los productos y eventos tienen UUID; los eventos incluyen dispositivo, fecha, tipo, cantidades antes/después y estado local. La versión del formato es 1.
+Estante, repisa/nivel y caja/recipiente son opcionales: indican dónde encontrar el producto. Ejemplo: estante A, repisa 2, caja 3.
 
-La siguiente etapa debe extraer el adaptador de persistencia a un repositorio asíncrono (IndexedDB), agregar API autenticada y base central, y enviar eventos con idempotencia y versiones por producto. El servidor debe validar cantidades, roles y conflictos, especialmente conteos y dos salidas simultáneas. No basta con copiar localStorage entre dispositivos. La marca `local` no implica una cola de sincronización implementada.
+## Escaneo y fotografías
 
-## Verificación realizada
+La cámara requiere HTTPS o localhost y permiso del navegador. La lectura de barras usa BarcodeDetector cuando existe. Se puede escribir el código o fotografiar sus números impresos y confirmar lo leído; no se autocompletan nombres ni marcas.
 
-Comprobación de sintaxis de los módulos y pruebas de reglas: búsqueda sin acentos, por código y medidas; entradas; salidas; rechazo de stock negativo y fracciones; conteo a cero con motivo e historial de diferencias. El servidor inició en localhost:4173; la comprobación HTTP fue bloqueada por los permisos de red del entorno.
+Los lectores Bluetooth/USB funcionan si se emparejan en el sistema como teclado/HID y terminan con Enter. La web no empareja directamente Bluetooth ni implementa perfiles propietarios. En el campo Código del alta, Enter confirma la lectura sin guardar por sí mismo el producto.
 
-No se completó verificación visual automatizada: la herramienta de navegador no pudo inicializarse. Cámara física, instalación PWA, comportamiento offline y disposición en dispositivos requieren las pruebas indicadas arriba.
+Vincular escáner muestra el QR de la pantalla receptora. Vincular como escáner abre el lector QR integrado en el teléfono. Se acepta automáticamente una invitación válida y temporal; no se pide otra confirmación en la principal. El lector QR usa la API nativa o jsQR 1.4.0 como alternativa. Rechaza QR ajenos y enlaces de otra dirección de la aplicación.
 
+Después de enviar un código, el teléfono puede tomar y enviar una foto. Si el producto ya existe, la portada se guarda en la principal sin tocar cantidades. Si es nuevo, queda en su ficha y hay que completar y crear el producto. Si se está editando otro producto, la foto queda pendiente para no cerrar esa ficha.
 
-## Foto del producto
+La limpieza automática de fotos solo separa fondos lisos con suficiente contraste. No reconoce semánticamente manos ni reconstruye zonas tapadas. Retocar foto permite borrar sobre blanco, deshacer y aplicar o cancelar. Las fotos no se envían a un servicio de análisis de imágenes; el OCR de códigos se procesa en el navegador y descarga sus componentes bajo demanda.
 
-Se retiró la lectura de etiquetas para sugerir nombre, marca, medidas y demás datos del producto. Estos campos son manuales. Elegir una foto no ejecuta OCR ni cambia la ficha. La búsqueda y el registro por códigos de barras siguen disponibles con el mismo pitido; la opción separada de fotografiar un código impreso solo propone códigos que debes confirmar.
+## Inventario conectado
 
-La foto del catálogo puede tomarse o elegirse del dispositivo. Se intenta limpiar un fondo liso y poner blanco; se conserva la opción original. Esta limpieza no es una segmentación semántica y no identifica manos ni reconstruye partes ocultas del producto.
+El teléfono vinculado ofrece Ver inventario conectado. Consulta productos y cantidades de la pantalla principal y confirma entradas, salidas y conteos allí. La principal valida y guarda cada solicitud. Los identificadores de solicitud evitan repetir un movimiento cuando se reintenta una confirmación. El entorno real/pruebas y los conteos obsoletos se validan en la principal.
 
-Para quitar una mano u otros restos, pulsa **Retocar foto / borrar mano**. Pinta sobre las zonas a borrar con el dedo o el mouse, ajusta el tamaño del borrador y usa Deshacer trazo si borras parte del producto. Aplica o cancela el retoque antes de guardar. El retoque usa blanco; es manual y no reconstruye lo que estaba detrás de una mano. El resultado se muestra en la portada y se guarda al confirmar el producto. La imagen original se conserva en el borrador hasta guardar para poder volver a ella.
+La lista se actualiza cada cinco segundos mientras está abierta y tras confirmar un movimiento. Las consultas incluyen hasta 3.000 productos y 2 MB de texto; no copian fotos. Se muestra cuántos productos se están consultando. Los catálogos mayores deben manejarse desde la principal.
 
-## Ubicación opcional
+La sesión usa WebRTC, PeerJS 1.5.5 con su servicio público de señalización y Google STUN. Necesita internet para iniciar, ambas páginas abiertas y dispositivos activos. No se configuró TURN: ciertas redes móviles o corporativas pueden impedir la conexión. La misma Wi-Fi es preferible para el ensayo, sin garantizar todas las redes.
 
-- Estante: el mueble o zona, por ejemplo A.
-- Repisa / nivel: la altura dentro del estante, por ejemplo 2.
-- Caja / recipiente: la caja de esa repisa, por ejemplo 3.
+La pantalla principal es la autoridad y su navegador guarda los datos. El teléfono no reemplaza su propio inventario local con el catálogo recibido. Cerrar/recargar una página o suspender el teléfono puede terminar la sesión. No hay base de datos propia en la nube, cuentas, permisos por usuario, sincronización permanente ni fusión de trabajo offline.
 
-Si no usas repisas ni cajas, deja esos campos vacíos. Tampoco es obligatorio indicar estante.
+## Instalación y modo sin conexión
 
-## Verificación de esta actualización
+El manifiesto incluye iconos PNG de 192 y 512 px. En navegadores compatibles aparecerá Instalar app; también puedes usar el menú del navegador. La interfaz se guarda después de una primera carga completa. Los datos locales pueden consultarse y editarse sin conexión, pero la vinculación y las descargas iniciales de lectores necesitan internet.
 
-Pruebas de que elegir foto no ejecuta OCR ni cambia nombre/marca, selección entre original y portada retocada, guardado de la versión elegida, borrador con mouse/tacto simulado, deshacer y aplicación/cancelación explícitas. Pasaron las regresiones de cámara y pitido y la comprobación de sintaxis. La revisión visual y el gesto en un teléfono real siguen pendientes por el fallo de inicialización de la herramienta de navegador.
+Tras actualizar, cierra y vuelve a abrir las páginas de la aplicación en ambos dispositivos antes de generar una nueva vinculación.
 
-## Vincular escáner · Tablet, PC y móvil
+## Verificación de esta versión
 
-En la pantalla principal aparece **Vincular escáner**.
+- Ocho pruebas incluidas en tests/: movimientos, validación/restauración, separación real/pruebas, fotos en copias, reposición, comandos idempotentes y consulta/movimientos conectados con respuestas fragmentadas en transporte simulado.
+- Prueba de interfaz con DOM: arranque completo, alta, entrada, salida, conteo, responsable, restauración, aislamiento entre inventarios, recuperación de corrupción y conflictos de pestañas.
+- Regresiones: fotos persistidas y visibles en tarjetas al recargar datos, enlace automático, envío de fotos, HID simulado, cámara, pitido, borrador y deshacer.
+- El servidor local devolvió HTTP 200 para la página y los módulos principales. Se comprobaron la sintaxis y la integridad de los recursos de la interfaz.
 
-### Lector Bluetooth o USB
+La automatización visual de navegador no pudo iniciarse por restricciones del entorno de Windows. No se completó revisión de píxeles ni cámara/lector físico en un teléfono, tablet o PC real. Antes de la presentación hay que ensayar GUIA-BETA1.md en los equipos del taller. La beta está preparada para esa prueba; todavía no debe ser el único registro definitivo del inventario.
 
-1. Empareja el lector desde los ajustes Bluetooth del dispositivo, o conecta el USB con el adaptador adecuado.
-2. Configúralo como teclado/HID, con Enter como sufijo. La web no empareja Bluetooth ni detecta por sí misma qué modelo está conectado.
-3. En Vincular escáner → Lector Bluetooth / USB, activa la entrada y prueba en el campo de código.
-4. En el alta puedes enfocar Código y escanear. Enter en ese campo no guarda el producto. Con la entrada activada, las lecturas rápidas fuera de campos también abren fichas o quedan pendientes si hay otra ficha abierta.
-
-SPP/serie, lectores con aplicaciones propietarias y perfiles distintos de HID no están implementados. El emparejamiento del sistema puede persistir, pero la activación de entrada en la web pertenece a esta pestaña y debe reactivarse tras recargar.
-
-### Teléfono como escáner remoto
-
-1. En la tablet o PC receptora, elige el inventario de pruebas o real que usarás.
-2. Pulsa Vincular escáner → Usar mi teléfono como escáner.
-3. Abre el QR con la cámara normal del teléfono, o copia y abre el enlace en él. El QR se genera en el navegador y no se envía a un generador de imágenes externo.
-4. En el teléfono pulsa Vincular con la pantalla receptora. En la tablet autoriza el teléfono mostrado. El diálogo de vinculación se cierra para que puedas recibir fichas.
-5. Desde el teléfono pulsa Escanear y enviar. La pantalla receptora abre la ficha; si estás dando de alta un producto, llena su código. Si hay otra ficha abierta, conserva hasta diez lecturas pendientes para no descartarla. El teléfono espera confirmación de recepción. No se modifican cantidades por recibir un código.
-6. Usa Desvincular al terminar. La recarga o cierre de una página termina su sesión; el teléfono en segundo plano puede perder conexión. Si falla, vuelve a vincular.
-
-La invitación permite nuevas conexiones durante diez minutos y requiere autorización en la pantalla receptora; se usa un identificador y una clave aleatorios, guardados en el fragmento del enlace. Solo se admite un teléfono autorizado por sesión. La vinculación no sincroniza el catálogo, los movimientos ni las existencias. El teléfono puede enviar una foto de catálogo asociada al código escaneado, que se revisa antes de aplicarla.
-
-Se utiliza WebRTC con PeerJS 1.5.5 y su servicio público de señalización, y Google STUN para descubrir la conexión. Requiere internet para cargar los componentes y establecer el enlace, sin backend propio de inventario. Ambos navegadores deben permanecer abiertos. No se configuró un servidor TURN: algunas redes móviles, corporativas o con NAT restrictivo pueden impedir la conexión; probar la misma Wi-Fi ayuda, sin garantizarla. La disponibilidad del servicio público no está bajo control del taller.
-
-Verificado: scripts reales de PeerJS y QR, creación local del QR, respuesta OPEN del servidor de señalización, autorización y envío con confirmación en transporte simulado, rechazo antes de autorizar, protección de duplicados, desconexión, entrada HID simulada y registro por código sin guardar automáticamente. Pendiente la prueba WebRTC completa entre dispositivos físicos y con un lector Bluetooth real.
-
-## Foto desde el teléfono vinculado
-
-Después de que la pantalla receptora confirme el código, el teléfono permite Tomar foto para el catálogo. La foto se reduce a 800 px y se envía por el enlace autorizado, en fragmentos con confirmación de recepción (límite aproximado 375 KB de JPEG). No se envía al servicio de señalización como archivo ni se guarda automáticamente en el inventario.
-
-Si la pantalla receptora tiene abierto el alta del mismo código, muestra una vista previa con Usar como foto del catálogo. En otro caso, queda pendiente bajo el botón Vincular escáner; cierra la ficha actual y pulsa Revisar foto del catálogo. La revisión abre el producto existente o una ficha nueva con ese código. Aplicar la imagen usa el mismo flujo de portada, fondo blanco y retoque; todavía debes confirmar Guardar cambios o Crear producto.
-
-Verificado en transporte simulado: envío y reconstrucción de fotos en varios fragmentos, asociación de código, confirmación y rechazo de imágenes inválidas. También pasaron las regresiones de vinculación, entrada HID y fotos sin autollenado. Pendiente la prueba con cámara y enlace en dos dispositivos físicos.
-
-## Lector QR integrado para vincular el teléfono
-
-Al lado de Vincular escáner aparece Vincular como escáner. En el teléfono, pulsa este segundo botón, permite la cámara y apunta al QR de la pantalla receptora. Al reconocer una invitación válida de la misma dirección de la aplicación, inicia la conexión; solo falta autorizar el teléfono en la tablet. No necesitas abrir la cámara externa del sistema. También puedes pegar el enlace en el mismo lector.
-
-El visor de vinculación es cuadrado. Utiliza BarcodeDetector con formato QR cuando está disponible y jsQR 1.4.0 descargado bajo demanda como alternativa. No abre direcciones de QR arbitrarios: rechaza códigos de productos, enlaces inválidos y enlaces de otra dirección web. La cámara se detiene al leer o salir. La vinculación Bluetooth/USB y el escaneo de productos mantienen su comportamiento.
-
-Comprobación: lectura real con jsQR de una imagen QR generada con un enlace de la aplicación, sintaxis y regresiones de cámara, lectura de barras, entrada HID y transporte de vinculación/fotos. La prueba de cámara entre dispositivos físicos sigue pendiente.
